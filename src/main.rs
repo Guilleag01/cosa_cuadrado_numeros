@@ -1,5 +1,7 @@
 use std::{collections::HashSet, fmt::Display};
 
+use cosa_cuadrado_numeros::matrix::Matrix;
+
 // const PRIME_TABLE: [[u128; 5]; 5] = [
 //     [2, 3, 5, 7, 11],
 //     [13, 17, 19, 23, 29],
@@ -16,31 +18,52 @@ use std::{collections::HashSet, fmt::Display};
 //     [21, 22, 23, 24, 25],
 // ];
 
+// const POSITIONS: [(usize, usize); 25] = [
+//     (2, 2),
+//     (2, 1),
+//     (1, 1),
+//     (1, 2),
+//     (1, 3),
+//     (2, 3),
+//     (3, 3),
+//     (3, 2),
+//     (3, 1),
+//     (3, 0),
+//     (2, 0),
+//     (1, 0),
+//     (0, 0),
+//     (0, 1),
+//     (0, 2),
+//     (0, 3),
+//     (0, 4),
+//     (1, 4),
+//     (2, 4),
+//     (3, 4),
+//     (4, 4),
+//     (4, 3),
+//     (4, 2),
+//     (4, 1),
+//     (4, 0),
+// ];
+
 #[derive(Default, Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct Board {
-    board: [[u8; 5]; 5],
-    _max: u8,
-    // hash: u128,
+    board: Matrix<u8, 5, 5>,
     value: u16,
 }
 
 impl Board {
     pub fn new() -> Self {
         Self {
-            board: [[1; 5]; 5],
-            _max: 0,
-            // hash: 142806463320114861533702931094369770,
-            value: 1,
+            board: [[1; 5]; 5].into(),
+            value: 25,
         }
     }
 
     pub fn set(&mut self, i: usize, j: usize, v: u8) {
-        // println!("hash {}", self.hash);
-        // self.hash /= self.board[i][j] as u128 * PRIME_TABLE[i][j];
         self.value -= self.board[i][j] as u16;
         self.board[i][j] = v;
         self.value += v as u16;
-        // self.hash *= v as u128 * PRIME_TABLE[i][j];
     }
 
     pub fn get(&self, i: isize, j: isize) -> Option<u8> {
@@ -50,12 +73,43 @@ impl Board {
         None
     }
 
+    pub fn get_rots_and_mirrs(&self) -> Vec<Board> {
+        let mut rots_and_mirrs = Vec::new();
+
+        let mut new_board = *self;
+
+        for _ in 0..4 {
+            let transpose = new_board.board.transpose();
+            for i in 0..5 {
+                new_board.board[4 - i] = transpose[i];
+            }
+
+            rots_and_mirrs.push(new_board);
+        }
+
+        new_board = *self;
+        for i in 0..5 {
+            new_board.board[4 - i] = self.board[i];
+        }
+        rots_and_mirrs.push(new_board);
+
+        new_board = *self;
+        for i in 0..5 {
+            for j in 0..5 {
+                new_board.board[i][4 - j] = self.board[i][j];
+            }
+        }
+        rots_and_mirrs.push(new_board);
+
+        rots_and_mirrs
+    }
+
     pub fn get_child(&mut self, state_dict: &mut HashSet<Board>) -> Vec<Board> {
         let mut childs = Vec::new();
 
-        // println!("self hash 1 {:?}", self.hash);
         for i in 0..5 {
             for j in 0..5 {
+                // for (i, j) in POSITIONS {
                 let curr_val = self.board[i][j];
 
                 let mut is_1 = false;
@@ -101,13 +155,11 @@ impl Board {
                 }
 
                 if is_1 {
-                    // println!("hh {:?}", self);
                     let mut new_state = *self;
                     new_state.set(i, j, 2);
                     if !state_dict.contains(&new_state) {
                         childs.push(new_state);
                     }
-                    // println!("das {:?}", new_state);
                 }
 
                 if curr_val != 1 {
@@ -119,9 +171,7 @@ impl Board {
                 }
             }
         }
-
-        // println!("c {:?}", childs);
-
+        // }
         childs
     }
 }
@@ -143,16 +193,25 @@ fn get_best() {
     let mut max_val: u16 = 0;
     let mut state_dict: HashSet<Board> = HashSet::new();
 
+    // let b = Board {
+    //     board: [[1; 5]; 5].into(),
+    //     value: 25,
+    // };
+
     let b = Board {
-        board: [[1; 5]; 5],
-        _max: 0,
-        // hash: 142806463320114861533702931094369770,
-        value: 25,
+        board: [
+            [1, 2, 3, 2, 1],
+            [2, 5, 2, 5, 2],
+            [4, 3, 5, 2, 3],
+            [2, 5, 4, 5, 2],
+            [1, 2, 3, 2, 1],
+        ]
+        .into(),
+        value: 69,
     };
 
     let mut state_stack: Vec<Board> = vec![b];
     while let Some(mut curr) = state_stack.pop() {
-        // println!("{:?}", curr);
         if curr.value > max_val {
             max_val = curr.value;
             _max_state = curr;
@@ -162,31 +221,31 @@ fn get_best() {
         let mut new_states = curr.get_child(&mut state_dict);
         new_states.sort_by(|x, y| x.value.cmp(&y.value));
 
-        // println!("{:?}", new_states);
-
         for new_state in new_states {
             if !state_dict.contains(&new_state) {
+                // for r_b in new_state.get_rots_and_mirrs() {
+                //     state_dict.insert(r_b);
+                // }
                 state_dict.insert(new_state);
                 state_stack.push(new_state);
-
-                // let pos = state_stack
-                //     .binary_search_by(|a| a.value.cmp(&new_state.value))
-                //     .unwrap_or_else(|e| e);
-                // state_stack.insert(pos, new_state);
             }
         }
-        // println!("{:?}", state_stack);
+
+        // state_stack.sort_unstable_by(|x, y| x.value.cmp(&y.value));
     }
 }
 
 fn main() {
-    // println!("{}", Board::new().hash);
-    // let mut toal = 1;
-    // for i in 0..5 {
-    //     for j in 0..5 {
-    //         toal *= PRIME_TABLE[i][j] as u128 * 7;
-    //     }
+    // let mut b = Board::new();
+    // b.board[0][0] = 5;
+    // b.board[0][4] = 3;
+    // println!("{}\n--------------------", b);
+
+    // let rots = b.get_rots_and_mirrs();
+
+    // for r in rots {
+    //     println!("{}\n", r);
     // }
-    // println!("{}", toal);
+
     get_best();
 }
