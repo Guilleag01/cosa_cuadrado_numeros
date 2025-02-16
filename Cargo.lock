@@ -13,6 +13,7 @@ name = "cosa_cuadrado_numeros"
 version = "0.1.0"
 dependencies = [
  "num",
+ "sorted-vec",
  "sortedvec",
 ]
 
@@ -88,6 +89,12 @@ checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
 ]
+
+[[package]]
+name = "sorted-vec"
+version = "0.8.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d372029cb5195f9ab4e4b9aef550787dce78b124fcaee8d82519925defcd6f0d"
 
 [[package]]
 name = "sortedvec"

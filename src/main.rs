@@ -1,6 +1,7 @@
 use std::{collections::HashSet, fmt::Display};
 
 use cosa_cuadrado_numeros::matrix::Matrix;
+use sorted_vec::SortedVec;
 
 // const PRIME_TABLE: [[u128; 5]; 5] = [
 //     [2, 3, 5, 7, 11],
@@ -46,10 +47,11 @@ use cosa_cuadrado_numeros::matrix::Matrix;
 //     (4, 0),
 // ];
 
-#[derive(Default, Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[derive(Default, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Board {
-    board: Matrix<u8, 5, 5>,
-    value: u16,
+    pub board: Matrix<u8, 5, 5>,
+    pub value: u16,
+    pub path: Vec<((u8, u8), u8)>,
 }
 
 impl Board {
@@ -57,6 +59,7 @@ impl Board {
         Self {
             board: [[1; 5]; 5].into(),
             value: 25,
+            path: Vec::new(),
         }
     }
 
@@ -64,6 +67,7 @@ impl Board {
         self.value -= self.board[i][j] as u16;
         self.board[i][j] = v;
         self.value += v as u16;
+        self.path.push(((i as u8, j as u8), v));
     }
 
     pub fn get(&self, i: isize, j: isize) -> Option<u8> {
@@ -76,7 +80,7 @@ impl Board {
     pub fn get_rots_and_mirrs(&self) -> Vec<Board> {
         let mut rots_and_mirrs = Vec::new();
 
-        let mut new_board = *self;
+        let mut new_board = self.clone();
 
         for _ in 0..4 {
             let transpose = new_board.board.transpose();
@@ -84,16 +88,16 @@ impl Board {
                 new_board.board[4 - i] = transpose[i];
             }
 
-            rots_and_mirrs.push(new_board);
+            rots_and_mirrs.push(new_board.clone());
         }
 
-        new_board = *self;
+        new_board = self.clone();
         for i in 0..5 {
             new_board.board[4 - i] = self.board[i];
         }
         rots_and_mirrs.push(new_board);
 
-        new_board = *self;
+        new_board = self.clone();
         for i in 0..5 {
             for j in 0..5 {
                 new_board.board[i][4 - j] = self.board[i][j];
@@ -131,7 +135,7 @@ impl Board {
                 }
 
                 if is_1 && is_2 && is_3 && is_4 {
-                    let mut new_state = *self;
+                    let mut new_state = self.clone();
                     new_state.set(i, j, 5);
                     if !state_dict.contains(&new_state) {
                         childs.push(new_state);
@@ -139,7 +143,7 @@ impl Board {
                 }
 
                 if is_1 && is_2 && is_3 {
-                    let mut new_state = *self;
+                    let mut new_state = self.clone();
                     new_state.set(i, j, 4);
                     if !state_dict.contains(&new_state) {
                         childs.push(new_state);
@@ -147,7 +151,7 @@ impl Board {
                 }
 
                 if is_1 && is_2 {
-                    let mut new_state = *self;
+                    let mut new_state = self.clone();
                     new_state.set(i, j, 3);
                     if !state_dict.contains(&new_state) {
                         childs.push(new_state);
@@ -155,20 +159,20 @@ impl Board {
                 }
 
                 if is_1 {
-                    let mut new_state = *self;
+                    let mut new_state = self.clone();
                     new_state.set(i, j, 2);
                     if !state_dict.contains(&new_state) {
                         childs.push(new_state);
                     }
                 }
 
-                if curr_val != 1 {
-                    let mut new_state = *self;
-                    new_state.set(i, j, 1);
-                    if !state_dict.contains(&new_state) {
-                        childs.push(new_state);
-                    }
-                }
+                // if curr_val != 1 {
+                //     let mut new_state = self.clone();
+                //     new_state.set(i, j, 1);
+                //     if !state_dict.contains(&new_state) {
+                //         childs.push(new_state);
+                //     }
+                // }
             }
         }
         // }
@@ -188,46 +192,84 @@ impl Display for Board {
     }
 }
 
+impl PartialOrd for Board {
+    fn lt(&self, other: &Self) -> bool {
+        std::matches!(self.partial_cmp(other), Some(std::cmp::Ordering::Less))
+    }
+
+    fn le(&self, other: &Self) -> bool {
+        std::matches!(
+            self.partial_cmp(other),
+            Some(std::cmp::Ordering::Less | std::cmp::Ordering::Equal)
+        )
+    }
+
+    fn gt(&self, other: &Self) -> bool {
+        std::matches!(self.partial_cmp(other), Some(std::cmp::Ordering::Greater))
+    }
+
+    fn ge(&self, other: &Self) -> bool {
+        std::matches!(
+            self.partial_cmp(other),
+            Some(std::cmp::Ordering::Greater | std::cmp::Ordering::Equal)
+        )
+    }
+
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.value.cmp(&other.value))
+    }
+}
+
+impl Ord for Board {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.value.cmp(&other.value)
+    }
+}
+
 fn get_best() {
     let mut _max_state: Board = Board::new();
     let mut max_val: u16 = 0;
     let mut state_dict: HashSet<Board> = HashSet::new();
 
-    // let b = Board {
-    //     board: [[1; 5]; 5].into(),
-    //     value: 25,
-    // };
-
     let b = Board {
-        board: [
-            [1, 2, 3, 2, 1],
-            [2, 5, 2, 5, 2],
-            [4, 3, 5, 2, 3],
-            [2, 5, 4, 5, 2],
-            [1, 2, 3, 2, 1],
-        ]
-        .into(),
-        value: 69,
+        board: [[1; 5]; 5].into(),
+        value: 25,
+        path: Vec::new(),
     };
 
-    let mut state_stack: Vec<Board> = vec![b];
+    // let b = Board {
+    //     board: [
+    //         [1, 2, 3, 2, 2],
+    //         [2, 5, 2, 5, 1],
+    //         [4, 3, 5, 2, 4],
+    //         [1, 5, 4, 5, 3],
+    //         [2, 2, 3, 1, 2],
+    //     ]
+    //     .into(),
+    //     value: 71,
+    //     path: Vec::new(),
+    // };
+
+    let mut state_stack: SortedVec<Board> = SortedVec::from(vec![b]);
     while let Some(mut curr) = state_stack.pop() {
         if curr.value > max_val {
             max_val = curr.value;
-            _max_state = curr;
-            println!("New best board found:\n{} Value: {}\n", curr, curr.value);
+            // _max_state = curr;
+            println!(
+                "New best board found:\n{} Value: {}",
+                curr.clone(),
+                curr.value
+            );
+            println!("{:?}\n", curr.path);
         }
 
-        let mut new_states = curr.get_child(&mut state_dict);
-        new_states.sort_by(|x, y| x.value.cmp(&y.value));
+        let new_states = curr.get_child(&mut state_dict);
+        // new_states.sort_by(|x, y| x.value.cmp(&y.value));
 
         for new_state in new_states {
             if !state_dict.contains(&new_state) {
-                // for r_b in new_state.get_rots_and_mirrs() {
-                //     state_dict.insert(r_b);
-                // }
-                state_dict.insert(new_state);
-                state_stack.push(new_state);
+                state_dict.insert(new_state.clone());
+                state_stack.insert(new_state);
             }
         }
 
